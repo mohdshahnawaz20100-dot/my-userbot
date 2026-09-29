@@ -1572,4 +1572,515 @@ async def wave_cmd(event):
         await msg.edit(f"🌊 **{text}** 🌊\n\n_💖 Beautiful 💖_")
     except Exception:
         pass
-                 
+
+
+FANCY_WORDS = ["hi", "hey", "bye", "welcome", "ok", "yes", "wow", "cool", "omg", "lol",
+               "love", "hate", "sad", "good", "bad", "best", "go", "fire", "boss"]
+
+def _make_banner(word, font="big"):
+    try:
+        import pyfiglet
+        banner = pyfiglet.figlet_format(word.upper(), font=font)
+        if len(banner) > 3500:
+            banner = banner[:3500] + "..."
+        return f"🦋✨\n`{banner}`\n✨🦋"
+    except Exception as e:
+        return f"❌ Error: `{str(e)[:100]}`"
+
+for _word in FANCY_WORDS:
+    @cmd(_word, delete_cmd=True)
+    async def fancy_handler(event, w=_word):
+        await reply_to_target(event, _make_banner(w))
+
+@cmd('text', delete_cmd=True)
+async def text_cmd(event):
+    text = get_args(event.message)
+    if not text:
+        await event.reply("❌ Usage: `.text <word>`")
+        return
+    await reply_to_target(event, _make_banner(text))
+
+@cmd('banner', delete_cmd=True)
+async def banner_cmd(event):
+    args = get_args(event.message).split()
+    if not args:
+        await event.reply("❌ Usage: `.banner <word> [font]`")
+        return
+    text = args[0]
+    font = args[1].lower() if len(args) > 1 else "big"
+    fonts_available = ["big", "banner", "block", "doom", "slant", "standard", "digital"]
+    if font not in fonts_available:
+        font = "big"
+    await reply_to_target(event, _make_banner(text, font))
+
+ART_TEXTS = {
+    "gm": """⁣....♥).....♥)..
+....(♥.....(♥..
+....♥).....♥)..
+_C█ __ █C
+Good Morning
+
+▬▬▬▬▬▬▬►🍀
+🌸◄▬▬▬▬▬▬""",
+    "gn": """∩――――∩
+|| ∧ ﾍ        ||
+||(* ´ ｰ`) Good Night💤
+|ﾉ^⌒⌒づ`￣＼Sweet Dreams🦋
+(    ノ        ⌒ ヽ ＼Take care💖
+＼        ||￣￣￣￣￣||
+     ＼,ﾉ||￣￣￣￣￣||""",
+    "hbd": """✧✧🔥🔥🔥🔥🔥✧✧
+✧╭┻┻┻┻┻┻┻┻┻┻╮✧
+✧┃╱╲ 🍓╱╲🍒 ╱╲┃✧
+╭┻━🍒━━━🍍━━━┻╮
+┃╱╲╱╲ 🍈╱╲🍇 ╱╲ ┃
+🎁━━━━━━━━━━━━🎁
+✨💕Happy Birthday💕✨""",
+    "wlc": """🌟。♥。✨。🍀
+。🎁 。🎉。🌟
+✨。＼｜／。🌺
+WELCOME🌸🌸
+💜。／｜＼。💎
+。☀。 🌹。🌙。
+🌟。 🦋。 🎶""",
+    "hello2": """　　　/)＿/)☆ Hello~
+    ／(๑^᎑^๑)っ ＼
+／|￣∪￣ ￣ |＼／
+  |＿＿_＿＿|／""",
+    "love2": """　∧__∧
+（｀•ω• )づ__∧
+（つ     /( •ω•。)
+  しーＪ   (nnノ)𝙄𝙩'𝙨 𝙤𝙠""",
+    "heyy": """　▬▬.◙.▬▬
+▂▄▄▓▄▄▂
+◢◤ █▀▀████▄▄▄▄▄◢◤
+█Heyy Listen   👀  █▀▀▀▀╬
+◥████████◤
+══╩══╩══
+I will send a helicopter to pick you up!""",
+    "gg": """🎩
+😁
+👕👍Great!
+👖""",
+    "flower": """　🌷🌸🌷🌸
+    🌸🌷🌸🌷🌸
+ Λ🌷🌸🌷🌸🌷
+( ˘ ᵕ ˘🌷🌸🌷
+ヽ  つ＼     ／
+   UU   / 🎀 \\""",
+    "gum": """૮₍ ˃ ⤙ ˂ ₎ა
+./づᡕᠵ᠊ᡃ່࡚ࠢ࠘ ⸝່ࠡࠣ᠊߯᠆ࠣ࠘ᡁࠣ࠘᠊᠊ࠢ࠘~~~~♡""",
+    "howdy": """█░█░█ █▀█ █░█░█
+▀▄▀▄▀ █▄█ ▀▄▀▄▀""",
+    "cool2": """█▀ █▀█ █▀█ █░
+█▄ █▄█ █▄█ █▄""",
+    "hug": """ଘ😇ଓ""",
+    "hug2": """˚∧＿∧  　+        —̳͟͞͞💗
+(  •‿• )つ  —̳͟͞͞ 💗         —̳͟͞͞💗 +
+(つ　 <                —̳͟͞͞💗
+｜　 _つ      +  —̳͟͞͞💗         —̳͟͞͞💗 ˚
+`し´""",
+    "thnx": """✨╭━━┳╮╭┳━━┳━┳┳┳┳━━╮💖
+✨╰╮╭┫╰╯┃╭╮┃┃┃┃╭┫━━┫💖
+✨╱┃┃┃╭╮┃┣┫┃┃┃┃╰╋━━┃💖
+✨╱╰╯╰╯╰┻╯╰┻┻━┻┻┻━━╯💖""",
+    "purpose": """　　👩
+👨🌹ノl>
+  |/       ▲`
+  |┑      ∥
+/"""
+}
+
+for _key, _art in ART_TEXTS.items():
+    @cmd(_key, delete_cmd=True)
+    async def art_handler(event, a=_art):
+        await reply_to_target(event, a)
+
+@cmd('weather', owner_only=True, delete_cmd=False)
+async def weather_cmd(event):
+    city = get_args(event.message)
+    if not city:
+        await event.reply("❌ **Usage:** `.weather city`")
+        return
+    await client.send_read_acknowledge(event.chat_id)
+    try:
+        city = city.strip().lower()
+        if city == 'bihar':
+            city = 'patna'
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={WEATHER_API_KEY}&units=metric"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    city_name = data.get('name', city.title())
+                    country = data.get('sys', {}).get('country', '')
+                    temp = data['main']['temp']
+                    feels_like = data['main']['feels_like']
+                    desc = data['weather'][0]['description'].title()
+                    humidity = data['main']['humidity']
+                    wind = data['wind']['speed']
+                    pressure = data['main']['pressure']
+                    emoji_map = {'clear': '☀️', 'clouds': '☁️', 'rain': '🌧️', 'snow': '❄️',
+                                 'thunderstorm': '⛈️', 'drizzle': '🌦️', 'mist': '🌫️', 'smoke': '💨', 'haze': '🌫️'}
+                    emoji = '🌤️'
+                    for key, em in emoji_map.items():
+                        if key in desc.lower():
+                            emoji = em
+                            break
+                    msg = f"""**{emoji} Weather Report: {city_name}, {country}**
+📅 {datetime.now().strftime('%d %b %Y, %I:%M %p')}
+
+🌡️ **Temperature:** {temp}°C
+🌡️ **Feels Like:** {feels_like}°C
+📝 **Condition:** {desc}
+💧 **Humidity:** {humidity}%
+🌬️ **Wind Speed:** {wind} m/s
+📊 **Pressure:** {pressure} hPa"""
+                    await event.reply(msg)
+                else:
+                    await event.reply(f"❌ Weather API error: {resp.status}")
+    except Exception as e:
+        await event.reply(f"❌ Error: {str(e)[:100]}")
+
+@cmd('news', owner_only=True, delete_cmd=False)
+async def news_cmd(event):
+    query = get_args(event.message)
+    await client.send_read_acknowledge(event.chat_id)
+    try:
+        if query:
+            url = f"https://newsapi.org/v2/everything?q={query}&apiKey={NEWS_API_KEY}&language=en&sortBy=publishedAt&pageSize=5"
+        else:
+            url = f"https://newsapi.org/v2/top-headlines?country=in&apiKey={NEWS_API_KEY}&pageSize=5"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    articles = data.get('articles', [])
+                    if not articles:
+                        await event.reply(f"❌ No news found for '{query or 'India'}'")
+                        return
+                    articles = articles[:5]
+                    location = query.title() if query else "India"
+                    current_time = datetime.now().strftime("%d %b %Y, %I:%M %p")
+                    msg = f"**📰 Latest News - {location}**\n🕐 {current_time}\n" + "═" * 30 + "\n\n"
+                    for i, article in enumerate(articles, 1):
+                        title = article.get('title', 'No title')
+                        source = article.get('source', {}).get('name', 'Unknown')
+                        published = article.get('publishedAt', '')
+                        time_str = ""
+                        if published:
+                            try:
+                                pub_time = datetime.fromisoformat(published.replace('Z', '+00:00'))
+                                time_str = pub_time.strftime("%I:%M %p")
+                            except Exception:
+                                pass
+                        description = article.get('description', '')
+                        if description and len(description) > 120:
+                            description = description[:117] + '...'
+                        msg += f"**{i}. {title}**\n📰 {source}"
+                        if time_str:
+                            msg += f" ⏰ {time_str}"
+                        msg += "\n"
+                        if description:
+                            msg += f"📝 {description}\n"
+                        msg += "\n" + "─" * 25 + "\n\n"
+                    msg += f"🔗 Source: NewsAPI\n📅 {datetime.now().strftime('%d %b %Y')}"
+                    await event.reply(msg)
+                else:
+                    await event.reply(f"❌ News API error: {resp.status}")
+    except Exception as e:
+        await event.reply(f"❌ Error: {str(e)[:100]}")
+
+@cmd('azan', owner_only=True, delete_cmd=False)
+async def azan_cmd(event):
+    city = get_args(event.message)
+    if not city:
+        await event.reply("❌ **Usage:** `.azan city`")
+        return
+    await client.send_read_acknowledge(event.chat_id)
+    try:
+        url = f"http://api.aladhan.com/v1/timingsByCity?city={city}&country=India&method=1"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                if data.get('code') == 200:
+                    t = data['data']['timings']
+                    date = data['data']['date']['readable']
+                    def convert_to_12h(time_str):
+                        try:
+                            if ':' in time_str:
+                                parts = time_str.split(':')
+                                hour = int(parts[0])
+                                minute = int(parts[1])
+                                ampm = "AM" if hour < 12 else "PM"
+                                hour = hour % 12
+                                if hour == 0:
+                                    hour = 12
+                                return f"{hour}:{minute:02d} {ampm}"
+                            return time_str
+                        except Exception:
+                            return time_str
+                    msg = f"""**🕌 Prayer Times: {city.title()}**
+📅 {date}
+
+🌅 **Fajr:** {convert_to_12h(t['Fajr'])}
+☀️ **Sunrise:** {convert_to_12h(t['Sunrise'])}
+🌙 **Dhuhr:** {convert_to_12h(t['Dhuhr'])}
+🌤️ **Asr:** {convert_to_12h(t['Asr'])}
+🌅 **Maghrib:** {convert_to_12h(t['Maghrib'])}
+🌌 **Isha:** {convert_to_12h(t['Isha'])}"""
+                    await event.reply(msg)
+                else:
+                    await event.reply(f"❌ City '{city}' not found.")
+    except Exception as e:
+        await event.reply(f"❌ Error: {str(e)[:100]}")
+
+@cmd('play', owner_only=True, delete_cmd=False)
+async def play_cmd(event):
+    query = get_args(event.message)
+    if not query:
+        await event.reply("❌ **Usage:** `.play song_name`")
+        return
+    await client.send_read_acknowledge(event.chat_id)
+    status_msg = await event.reply(f"🔍 Searching for '{query}'...")
+    try:
+        search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(search_url) as resp:
+                html = await resp.text()
+                video_ids = re.findall(r'"videoId":"([^"]+)"', html)
+                if not video_ids:
+                    await status_msg.edit(f"❌ No results found for '{query}'")
+                    return
+                video_id = video_ids[0]
+                video_url = f"https://youtube.com/watch?v={video_id}"
+                video_titles = re.findall(r'"title":"([^"]+)"', html)
+                title = video_titles[0].replace('\\u0026', '&').replace('\\u003c', '<').replace('\\u003e', '>') if video_titles else query
+                title = re.sub(r'[^\w\s\-\.\&\(\)]', '', title)
+                if len(title) > 60:
+                    title = title[:57] + '...'
+                duration = re.findall(r'"lengthSeconds":"([^"]+)"', html)
+                duration_str = ""
+                if duration:
+                    try:
+                        secs = int(duration[0])
+                        mins = secs // 60
+                        secs = secs % 60
+                        duration_str = f"⏱️ {mins:02d}:{secs:02d}"
+                    except Exception:
+                        pass
+                channels = re.findall(r'"ownerChannelName":"([^"]+)"', html)
+                channel = channels[0] if channels else "YouTube"
+                await status_msg.delete()
+                msg = f"""**🎵 {title}**
+
+📺 **Channel:** {channel}
+{duration_str}
+
+🔗 **Watch on YouTube:**
+
+[{title}]({video_url})
+
+---
+💡 Tap the link above to open in Telegram"""
+                await event.reply(msg, parse_mode='markdown', link_preview=True)
+    except Exception as e:
+        await status_msg.edit(f"❌ Error: {str(e)[:100]}")
+
+@cmd('sticker', delete_cmd=False)
+async def sticker_cmd(event):
+    reply = await event.get_reply_message()
+    if not reply or not reply.photo:
+        await event.reply("❌ Reply to an image!")
+        return
+    msg = await event.reply("🎨 Creating sticker...")
+    try:
+        from PIL import Image
+        img_path = await reply.download_media(file=str(TEMP_DIR))
+        img = Image.open(img_path).convert("RGBA")
+        img.thumbnail((512, 512), Image.LANCZOS)
+        canvas = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
+        offset = ((512 - img.width) // 2, (512 - img.height) // 2)
+        canvas.paste(img, offset, img)
+        sticker_path = str(TEMP_DIR / "sticker.webp")
+        canvas.save(sticker_path, "WEBP")
+        await client.send_file(event.chat_id, sticker_path, force_document=False)
+        try: os.remove(img_path)
+        except: pass
+        try: os.remove(sticker_path)
+        except: pass
+        await msg.delete()
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:200]}`")
+
+@cmd('toimg', delete_cmd=False)
+async def toimg_cmd(event):
+    reply = await event.get_reply_message()
+    if not reply or not reply.sticker:
+        await event.reply("❌ Reply to a sticker!")
+        return
+    msg = await event.reply("🖼️ Converting...")
+    try:
+        from PIL import Image
+        sticker_path = await reply.download_media(file=str(TEMP_DIR))
+        img = Image.open(sticker_path).convert("RGBA")
+        img_path = str(TEMP_DIR / "from_sticker.png")
+        img.save(img_path, "PNG")
+        await client.send_file(event.chat_id, img_path, caption="🖼️ **Sticker → Image**")
+        try: os.remove(sticker_path)
+        except: pass
+        try: os.remove(img_path)
+        except: pass
+        await msg.delete()
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:200]}`")
+
+@cmd('blur', delete_cmd=False)
+async def blur_cmd(event):
+    reply = await event.get_reply_message()
+    if not reply or not reply.photo:
+        await event.reply("❌ Reply to an image!")
+        return
+    msg = await event.reply("🎨 Blurring...")
+    try:
+        from PIL import Image, ImageFilter
+        img_path = await reply.download_media(file=str(TEMP_DIR))
+        img = Image.open(img_path)
+        blurred = img.filter(ImageFilter.GaussianBlur(radius=15))
+        output = str(TEMP_DIR / "blurred.jpg")
+        blurred.save(output, "JPEG", quality=85)
+        await client.send_file(event.chat_id, output, caption="🎨 **Blurred**")
+        try: os.remove(img_path)
+        except: pass
+        try: os.remove(output)
+        except: pass
+        await msg.delete()
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:200]}`")
+
+@cmd('img2pdf', delete_cmd=False)
+async def img2pdf_cmd(event):
+    reply = await event.get_reply_message()
+    if not reply or not reply.photo:
+        await event.reply("❌ Reply to an image!")
+        return
+    msg = await event.reply("📄 Converting to PDF...")
+    try:
+        import img2pdf
+        img_path = await reply.download_media(file=str(TEMP_DIR))
+        pdf_path = str(TEMP_DIR / "output.pdf")
+        with open(pdf_path, "wb") as f:
+            f.write(img2pdf.convert(img_path))
+        await client.send_file(event.chat_id, pdf_path, caption="📄 **PDF Created**")
+        try: os.remove(img_path)
+        except: pass
+        try: os.remove(pdf_path)
+        except: pass
+        await msg.delete()
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:200]}`")
+
+@cmd('forecast', owner_only=True, delete_cmd=False)
+async def forecast_cmd(event):
+    city = get_args(event.message)
+    if not city:
+        await event.reply("❌ Usage: `.forecast <city>`")
+        return
+    msg = await event.reply("🌤️ Loading forecast...")
+    try:
+        url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={WEATHER_API_KEY}&units=metric&cnt=40"
+        async with aiohttp.ClientSession() as s:
+            async with s.get(url) as r:
+                if r.status != 200:
+                    await msg.edit("❌ City not found")
+                    return
+                data = await r.json()
+        text = f"🌤️ **5-Day Forecast: {data['city']['name']}**\n\n"
+        daily = {}
+        for item in data['list']:
+            date = item['dt_txt'].split()[0]
+            if date not in daily:
+                daily[date] = item
+        for date, item in list(daily.items())[:5]:
+            temp = item['main']['temp']
+            desc = item['weather'][0]['description'].title()
+            emoji_map = {'clear':'☀️','clouds':'☁️','rain':'🌧️','snow':'❄️','thunderstorm':'⛈️','drizzle':'🌦️','mist':'🌫️'}
+            em = '🌤️'
+            for k, v in emoji_map.items():
+                if k in desc.lower():
+                    em = v; break
+            text += f"**{date}** {em} {temp}°C — {desc}\n"
+        await msg.edit(text, parse_mode='markdown')
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:200]}`")
+
+@cmd('aqi', owner_only=True, delete_cmd=False)
+async def aqi_cmd(event):
+    city = get_args(event.message)
+    if not city:
+        await event.reply("❌ Usage: `.aqi <city>`")
+        return
+    msg = await event.reply("🌫️ Loading AQI...")
+    try:
+        geo_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={WEATHER_API_KEY}"
+        async with aiohttp.ClientSession() as s:
+            async with s.get(geo_url) as r:
+                geo = await r.json()
+        if not geo:
+            await msg.edit("❌ City not found")
+            return
+        lat, lon = geo[0]['lat'], geo[0]['lon']
+        aqi_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={WEATHER_API_KEY}"
+        async with aiohttp.ClientSession() as s:
+            async with s.get(aqi_url) as r:
+                data = await r.json()
+        aqi = data['list'][0]['main']['aqi']
+        components = data['list'][0]['components']
+        levels = {1: "🟢 Good", 2: "🟡 Fair", 3: "🟠 Moderate", 4: "🔴 Poor", 5: "⚫ Very Poor"}
+        text = (
+            f"🌫️ **AQI: {city.title()}**\n\n"
+            f"**Air Quality:** {levels.get(aqi, 'Unknown')} ({aqi}/5)\n\n"
+            f"**Pollutants:**\n"
+            f"• PM2.5: {components.get('pm2_5', 0)} µg/m³\n"
+            f"• PM10: {components.get('pm10', 0)} µg/m³\n"
+            f"• NO₂: {components.get('no2', 0)} µg/m³\n"
+            f"• O₃: {components.get('o3', 0)} µg/m³\n"
+            f"• CO: {components.get('co', 0)} µg/m³"
+        )
+        await msg.edit(text, parse_mode='markdown')
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:200]}`")
+
+async def health_server():
+    async def handle(request):
+        return web.Response(text="✅ Codernova Userbot Running")
+    app = web.Application()
+    app.router.add_get('/', handle)
+    app.router.add_get('/health', handle)
+    port = int(os.getenv('PORT', 8080))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    log.info(f"✅ Health server on port {port}")
+    await asyncio.Event().wait()
+
+async def main():
+    asyncio.create_task(health_server())
+    await client.start(phone=PHONE_NUMBER)
+    me = await client.get_me()
+    log.info(f"✅ Userbot Started: {me.first_name} (@{me.username})")
+    log.info(f"👑 Owner: {OWNER_ID}")
+    log.info("⚙️ Type .help in any chat.")
+    await client.run_until_disconnected()
+
+if __name__ == '__main__':
+    print("=" * 50)
+    print("  CODERNOVA SINGLE-USER USERBOT")
+    print("=" * 50)
+    try:
+        client.loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        log.info("🛑 Stopped.")
+    except Exception as e:
+        log.error(f"Fatal: {e}")
