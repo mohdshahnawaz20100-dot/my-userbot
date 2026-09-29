@@ -604,3 +604,972 @@ async def gunmute_cmd(event):
         del db['gmuted'][str(uid)]
         save_db()
     await event.reply("🌐 **User Globally Unmuted!**")
+  
+
+def get_base_banned_rights():
+    return ChatBannedRights(
+        until_date=None, send_messages=False, send_media=False,
+        send_stickers=True, send_gifs=True, send_games=False,
+        send_inline=False, send_polls=False, embed_links=True,
+        send_photos=False, send_videos=False, send_audios=False,
+        send_voices=False, send_docs=False, pin_messages=True,
+        change_info=True, invite_users=False,
+    )
+
+@cmd('lock')
+async def lock_cmd(event):
+    if not event.is_group:
+        await event.reply("❌ This is not a group.")
+        return
+    try:
+        base = get_base_banned_rights()
+        base.send_messages = True
+        base.send_media = True
+        base.send_photos = True
+        base.send_videos = True
+        base.send_audios = True
+        base.send_voices = True
+        base.send_docs = True
+        base.send_polls = True
+        base.send_games = True
+        base.send_inline = True
+        await client(EditChatDefaultBannedRightsRequest(peer=event.chat_id, banned_rights=base))
+        await event.reply("🔒 Group Locked!")
+    except Exception as e:
+        await event.reply(f"❌ Lock failed: {str(e)[:100]}")
+
+@cmd('unlock')
+async def unlock_cmd(event):
+    if not event.is_group:
+        await event.reply("❌ This is not a group.")
+        return
+    try:
+        base = get_base_banned_rights()
+        base.send_messages = False
+        base.send_media = False
+        base.send_photos = False
+        base.send_videos = False
+        base.send_audios = False
+        base.send_voices = False
+        base.send_docs = False
+        base.send_polls = False
+        base.send_games = False
+        base.send_inline = False
+        await client(EditChatDefaultBannedRightsRequest(peer=event.chat_id, banned_rights=base))
+        await event.reply("🔓 Group Unlocked!")
+    except Exception as e:
+        await event.reply(f"❌ Unlock failed: {str(e)[:100]}")
+
+@cmd('tagall')
+async def tagall_cmd(event):
+    if not event.is_group:
+        await event.reply("❌ This is not a group.")
+        return
+    text = get_args(event.message)
+    chat_id = event.chat_id
+    all_users_list = []
+    try:
+        async for user in client.iter_participants(chat_id):
+            if not user.deleted and not user.bot:
+                all_users_list.append(user)
+    except Exception as e:
+        await event.reply(f"❌ Failed: {str(e)[:100]}")
+        return
+    if not all_users_list:
+        await event.reply("❌ No members found.")
+        return
+    chunk_size = 50
+    for i in range(0, len(all_users_list), chunk_size):
+        chunk = all_users_list[i:i + chunk_size]
+        mentions = []
+        for user in chunk:
+            name = user.first_name or "User"
+            name = name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            mentions.append(f'<a href="tg://user?id={user.id}">{name}</a>')
+        mention_str = ' '.join(mentions)
+        msg = f"{text}\n{mention_str}" if (i == 0 and text) else mention_str
+        await event.respond(msg, parse_mode='html')
+        await asyncio.sleep(1.5)
+
+@cmd('tagall2')
+async def tagall2_cmd(event):
+    if not event.is_group:
+        await event.reply("❌ This is not a group.")
+        return
+    text = get_args(event.message)
+    if not text:
+        await event.reply("❌ Usage: `.tagall2 <text>`")
+        return
+    chat_id = event.chat_id
+    all_users_list = []
+    try:
+        async for user in client.iter_participants(chat_id):
+            if not user.deleted and not user.bot:
+                all_users_list.append(user)
+    except Exception as e:
+        await event.reply(f"❌ Failed: {str(e)[:100]}")
+        return
+    count = 0
+    for user in all_users_list:
+        try:
+            name = user.first_name or "User"
+            name = name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            msg = f'<a href="tg://user?id={user.id}">{name}</a> {text}'
+            await event.respond(msg, parse_mode='html')
+            count += 1
+            await asyncio.sleep(1.2)
+        except FloodWaitError as e:
+            await asyncio.sleep(e.seconds + 2)
+        except Exception:
+            continue
+    await event.respond(f"✅ Done! {count} members tagged.")
+
+@cmd('raid')
+async def raid_cmd(event):
+    if not event.is_reply:
+        await event.reply("❌ Reply to a user.")
+        return
+    count_str = get_args(event.message)
+    try:
+        count = int(count_str) if count_str else 10
+    except Exception:
+        count = 10
+    count = min(count, 50)
+    reply = await event.get_reply_message()
+    for i in range(count):
+        try:
+            msg_template = random.choice(RAID_MESSAGES).replace('{n}', str(i + 1))
+            await reply.reply(msg_template)
+            await asyncio.sleep(0.3)
+        except Exception:
+            break
+
+@cmd('purge', delete_cmd=True)
+async def purge_cmd(event):
+    if not event.is_reply:
+        await event.reply("❌ Reply to a message.")
+        return
+    reply_msg = await event.get_reply_message()
+    if not reply_msg:
+        await event.reply("❌ Could not fetch.")
+        return
+    chat_id = event.chat_id
+    start_id = reply_msg.id
+    all_ids = []
+    last_id = start_id
+    while True:
+        try:
+            msgs = await client.get_messages(chat_id, min_id=last_id, limit=100, reverse=False)
+            if not msgs:
+                break
+            ids = [m.id for m in msgs]
+            all_ids.extend(ids)
+            last_id = min(ids) if ids else start_id
+            if len(msgs) < 100:
+                break
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)[:100]}")
+            return
+    if not all_ids:
+        await event.reply("✅ No messages to delete.")
+        return
+    total_deleted = 0
+    chunk_size = 100
+    for i in range(0, len(all_ids), chunk_size):
+        chunk = all_ids[i:i + chunk_size]
+        try:
+            await client.delete_messages(chat_id, chunk)
+            total_deleted += len(chunk)
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            await event.reply(f"❌ Delete failed: {str(e)[:100]}")
+            return
+    await event.reply(f"✅ Purged **{total_deleted}** messages.")
+
+@cmd('throw')
+async def throw_cmd(event):
+    if not event.is_group:
+        return
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    try:
+        await client(EditBannedRequest(event.chat_id, uid, ChatBannedRights(until_date=None, view_messages=True)))
+        await asyncio.sleep(0.5)
+        await client(EditBannedRequest(event.chat_id, uid, ChatBannedRights(until_date=None, view_messages=False)))
+        await event.reply("👢 **User Kicked!**")
+    except Exception as e:
+        await event.reply(f"❌ {str(e)[:100]}")
+
+@cmd('stop')
+async def stop_cmd(event):
+    db['reply_raid'].clear()
+    db['rr_raid'].clear()
+    db['flag_raid'].clear()
+    db['heart_raid'].clear()
+    db['spam_running'] = False
+    db['fast_gc_data'].clear()
+    save_db()
+    await event.reply("🛑 **All loops stopped!**")
+
+async def fast_gc_loop(chat_id):
+    while True:
+        data = db['fast_gc_data'].get(str(chat_id))
+        if not data or not data.get('enabled', False):
+            break
+        template = data.get('template', 'FastGC')
+        counter = data.get('counter', 0) + 1
+        new_title = f"{template} [{counter}]"
+        try:
+            entity = await client.get_entity(chat_id)
+            if hasattr(entity, 'broadcast') and entity.broadcast:
+                await client(EditTitleRequest(channel=entity, title=new_title))
+            else:
+                await client(EditChatTitleRequest(chat_id=chat_id, title=new_title))
+            data['counter'] = counter
+            save_db()
+        except Exception as e:
+            log.warning(f"FastGC error: {e}")
+            db['fast_gc_data'][str(chat_id)]['enabled'] = False
+            save_db()
+            break
+        await asyncio.sleep(1.5)
+
+@cmd('fastgc')
+async def fastgc_cmd(event):
+    args = get_args(event.message).split()
+    if not args:
+        await event.reply("Usage: `.fastgc set <text>` | `.fastgc stop`")
+        return
+    chat_id = str(event.chat_id)
+    action = args[0].lower()
+    if action == 'set' and len(args) > 1:
+        template = ' '.join(args[1:])
+        db['fast_gc_data'][chat_id] = {'enabled': True, 'template': template, 'counter': 0}
+        save_db()
+        asyncio.create_task(fast_gc_loop(event.chat_id))
+        await event.reply(f"⚡ **Fast GC started!**")
+    elif action == 'stop':
+        if chat_id in db['fast_gc_data']:
+            db['fast_gc_data'][chat_id]['enabled'] = False
+            save_db()
+            await event.reply("🛑 **Fast GC stopped!**")
+        else:
+            await event.reply("❌ No fast GC running.")
+    else:
+        await event.reply("Usage: `.fastgc set <text>` | `.fastgc stop`")
+
+@cmd('autoreact')
+async def autoreact_cmd(event):
+    arg = get_args(event.message).lower()
+    if arg == 'on':
+        db['auto_react_dm_enabled'] = True
+        save_db()
+        await event.reply("✅ **DM Auto‑React ON**")
+    elif arg == 'off':
+        db['auto_react_dm_enabled'] = False
+        save_db()
+        await event.reply("✅ **DM Auto‑React OFF**")
+    else:
+        await event.reply("Usage: `.autoreact on/off`")
+
+@cmd('autoreactg')
+async def autoreactg_cmd(event):
+    arg = get_args(event.message).lower()
+    if arg == 'on':
+        db['auto_react_group_enabled'] = True
+        save_db()
+        await event.reply("✅ **Group Auto‑React ON**")
+    elif arg == 'off':
+        db['auto_react_group_enabled'] = False
+        save_db()
+        await event.reply("✅ **Group Auto‑React OFF**")
+    else:
+        await event.reply("Usage: `.autoreactg on/off`")
+
+@cmd('autoreply')
+async def autoreply_cmd(event):
+    text = get_args(event.message)
+    parts = text.split(' ', 1)
+    DEFAULT_REPLY = "The owner is busy with some personal work at the moment😌Please wait until they are back online🥀"
+    if not parts or not parts[0]:
+        await event.reply("**Usage:**\n`.autoreply on`\n`.autoreply off`\n`.autoreply set <text>`\n`.autoreply reset`", parse_mode='markdown')
+        return
+    action = parts[0].lower()
+    if action == 'on':
+        db['auto_reply']['enabled'] = True
+        db['auto_reply']['mode'] = 'always'
+        db['auto_reply']['text'] = DEFAULT_REPLY
+        db['auto_reply']['replied_users'] = []
+        save_db()
+        await event.reply("✅ Auto Reply ON (Always Mode)")
+    elif action == 'off':
+        db['auto_reply']['enabled'] = False
+        db['auto_reply']['replied_users'] = []
+        save_db()
+        await event.reply("✅ Auto Reply OFF")
+    elif action == 'set' and len(parts) > 1:
+        db['auto_reply']['text'] = parts[1]
+        db['auto_reply']['enabled'] = True
+        db['auto_reply']['mode'] = 'once'
+        db['auto_reply']['replied_users'] = []
+        save_db()
+        await event.reply("✅ Custom Auto Reply Set (Once Mode)")
+    elif action == 'reset':
+        db['auto_reply']['replied_users'] = []
+        save_db()
+        await event.reply("✅ Replied list reset!")
+
+@cmd('pmguard')
+async def pmguard_cmd(event):
+    arg = get_args(event.message).lower()
+    if arg == 'on':
+        db['pmguard']['enabled'] = True
+        save_db()
+        await event.reply("🛡️ **PM Guard ON**")
+    elif arg == 'off':
+        db['pmguard']['enabled'] = False
+        save_db()
+        await event.reply("🛡️ **PM Guard OFF**")
+    else:
+        await event.reply("Usage: `.pmguard on/off`")
+
+@cmd('approve')
+async def approve_cmd(event):
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    if uid in db['approved']:
+        await event.reply("✅ Already approved.")
+        return
+    db['approved'].append(uid)
+    db['pm_warnings'].pop(str(uid), None)
+    try:
+        await client(UnblockRequest(id=uid))
+    except Exception:
+        pass
+    save_db()
+    await event.reply("✅ **User Approved!**")
+
+@cmd('disapprove')
+async def disapprove_cmd(event):
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    if uid in db['approved']:
+        db['approved'].remove(uid)
+        save_db()
+    await event.reply("✅ **User Disapproved!**")
+
+@cmd('blacklist')
+async def blacklist_cmd(event):
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    if uid not in db['blacklist']:
+        db['blacklist'].append(uid)
+        save_db()
+    await event.reply("🚫 **User Blacklisted!**")
+
+@cmd('removeblacklist')
+async def removeblacklist_cmd(event):
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    if uid in db['blacklist']:
+        db['blacklist'].remove(uid)
+        save_db()
+    await event.reply("✅ **User Removed from Blacklist!**")
+
+@client.on(events.NewMessage(func=lambda e: e.is_private and not e.out))
+async def pm_guard_handler(event):
+    uid = event.sender_id
+    if uid == db.get('owner_id', OWNER_ID):
+        return
+    if not db['pmguard'].get('enabled', False):
+        return
+    if uid in db['approved']:
+        return
+    if uid in db['blacklist']:
+        await client(BlockRequest(id=uid))
+        return
+    w = db['pm_warnings'].get(str(uid), 0) + 1
+    db['pm_warnings'][str(uid)] = w
+    save_db()
+    if w < 5:
+        await event.reply(f"**🔒 SECURITY ALERT**\n\nOwner is busy. Warning: {w}/5")
+    else:
+        await event.reply("🚫 **You have been blocked!**")
+        try:
+            await client(BlockRequest(id=uid))
+            if uid not in db['blocklist']:
+                db['blocklist'].append(uid)
+                save_db()
+        except Exception:
+            pass
+
+@client.on(events.NewMessage)
+async def gmute_filter(event):
+    if event.out:
+        return
+    uid = event.sender_id
+    if str(uid) in db['gmuted']:
+        try:
+            await event.delete()
+            if event.is_private:
+                await client(BlockRequest(id=uid))
+        except Exception:
+            pass
+
+@client.on(events.NewMessage)
+async def auto_react_handler(event):
+    if event.out:
+        return
+    if event.is_private:
+        if db['auto_react_dm_enabled']:
+            emoji = random.choice(db['auto_react_emojis'])
+            try:
+                await client(SendReactionRequest(
+                    peer=event.chat_id,
+                    msg_id=event.message.id,
+                    reaction=[ReactionEmoji(emoticon=emoji)]
+                ))
+            except Exception:
+                pass
+    else:
+        if db['auto_react_group_enabled']:
+            emoji = random.choice(db['auto_react_emojis'])
+            try:
+                await client(SendReactionRequest(
+                    peer=event.chat_id,
+                    msg_id=event.message.id,
+                    reaction=[ReactionEmoji(emoticon=emoji)]
+                ))
+            except Exception:
+                pass
+
+@client.on(events.NewMessage(func=lambda e: e.is_private and not e.out))
+async def auto_reply_handler(event):
+    uid = event.sender_id
+    if uid == db.get('owner_id', OWNER_ID):
+        return
+    if not db['auto_reply'].get('enabled', False):
+        return
+    mode = db['auto_reply'].get('mode', 'always')
+    text = db['auto_reply'].get('text', 'Busy...')
+    if mode == 'always':
+        await asyncio.sleep(0.5)
+        try:
+            await event.reply(text)
+        except Exception:
+            pass
+        return
+    if mode == 'once':
+        replied = db['auto_reply'].get('replied_users', [])
+        if uid in replied:
+            return
+        await asyncio.sleep(0.5)
+        try:
+            await event.reply(text)
+            replied.append(uid)
+            db['auto_reply']['replied_users'] = replied
+            save_db()
+        except Exception:
+            pass
+
+@cmd('reply')
+async def reply_raid_cmd(event):
+    if not event.is_group:
+        return
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    async def send_reply():
+        msg = random.choice(REPLY_MESSAGES)
+        await event.reply(f"@{uid} {msg}")
+    asyncio.create_task(raid_loop(event, uid, db['reply_raid'], send_reply, 1.5))
+    await event.reply(f"⚔️ **Reply raid started!**")
+
+@cmd('sreply')
+async def sreply_raid_cmd(event):
+    chat_id = event.chat_id
+    if chat_id in db['reply_raid']:
+        db['reply_raid'][chat_id].clear()
+        await event.reply("🛑 **Reply raid stopped!**")
+
+@cmd('rr')
+async def rr_raid_cmd(event):
+    if not event.is_group:
+        return
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    async def send_rr():
+        await event.reply(f"🤣 {user_link(uid)}", parse_mode='markdown')
+    asyncio.create_task(raid_loop(event, uid, db['rr_raid'], send_rr, 1))
+    await event.reply(f"🤣 **RR raid started!**")
+
+@cmd('srr')
+async def srr_raid_cmd(event):
+    chat_id = event.chat_id
+    if chat_id in db['rr_raid']:
+        db['rr_raid'][chat_id].clear()
+        await event.reply("🛑 **RR raid stopped!**")
+
+@cmd('flag')
+async def flag_raid_cmd(event):
+    if not event.is_group:
+        return
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    flags = ['🇮🇳', '🇺🇸', '🇬🇧', '🇩🇪', '🇫🇷', '🇯🇵', '🇨🇳', '🇷🇺', '🇧🇷', '🇦🇪']
+    async def send_flag():
+        await event.reply(f"{random.choice(flags)} {user_link(uid)}", parse_mode='markdown')
+    asyncio.create_task(raid_loop(event, uid, db['flag_raid'], send_flag, 1.2))
+    await event.reply(f"🚩 **Flag raid started!**")
+
+@cmd('sflag')
+async def sflag_raid_cmd(event):
+    chat_id = event.chat_id
+    if chat_id in db['flag_raid']:
+        db['flag_raid'][chat_id].clear()
+        await event.reply("🛑 **Flag raid stopped!**")
+
+@cmd('hrr')
+async def heart_raid_cmd(event):
+    if not event.is_group:
+        return
+    uid = await resolve_user(client, event.message, get_args(event.message))
+    if not uid:
+        await event.reply("❌ User not found.")
+        return
+    hearts = ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💗']
+    async def send_heart():
+        await event.reply(f"{random.choice(hearts)} {user_link(uid)}", parse_mode='markdown')
+    asyncio.create_task(raid_loop(event, uid, db['heart_raid'], send_heart, 1))
+    await event.reply(f"💖 **Heart raid started!**")
+
+@cmd('shrr')
+async def sheart_raid_cmd(event):
+    chat_id = event.chat_id
+    if chat_id in db['heart_raid']:
+        db['heart_raid'][chat_id].clear()
+        await event.reply("🛑 **Heart raid stopped!**")
+
+@cmd('spray')
+async def spray_cmd(event):
+    text = get_args(event.message)
+    db['spam_running'] = True
+    if not text:
+        async def spam_loop():
+            count = 0
+            while db['spam_running'] and count < 100:
+                try:
+                    msg = random.choice(DEFAULT_SPAM_TEXTS)
+                    emoji = random.choice(SPAM_EMOJIS)
+                    await event.reply(f"{msg} {emoji}")
+                    count += 1
+                    await asyncio.sleep(0.8)
+                except Exception:
+                    break
+            db['spam_running'] = False
+        asyncio.create_task(spam_loop())
+        await event.reply("💣 **Spam started!**")
+    else:
+        async def spam_loop():
+            count = 0
+            while db['spam_running'] and count < 100:
+                try:
+                    emoji = random.choice(SPAM_EMOJIS)
+                  
+async def deezer_search(query, limit=1):
+    try:
+        url = f"https://api.deezer.com/search?q={url_quote(query)}&limit={limit}"
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+    except Exception:
+        pass
+    return None
+
+@cmd('lyrics', delete_cmd=False)
+async def lyrics_cmd(event):
+    query = get_args(event.message)
+    if not query:
+        await event.reply("❌ Usage: `.lyrics <song>`")
+        return
+    msg = await event.reply("🎵 Searching lyrics...")
+    try:
+        parts = query.split(maxsplit=1)
+        data = None
+        if len(parts) == 2:
+            url = f"https://api.lyrics.ovh/v1/{url_quote(parts[0])}/{url_quote(parts[1])}"
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+        if data and data.get("lyrics"):
+            await msg.edit(f"🎶 **Lyrics for:** `{query}`\n\n{data['lyrics'][:3990]}")
+            return
+        deezer = await deezer_search(query)
+        if deezer and deezer.get("data"):
+            track = deezer["data"][0]
+            artist = track["artist"]["name"]
+            title = track["title"]
+            url = f"https://api.lyrics.ovh/v1/{url_quote(artist)}/{url_quote(title)}"
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        d2 = await resp.json()
+                        if d2.get("lyrics"):
+                            await msg.edit(f"🎶 **{title}** - {artist}\n\n{d2['lyrics'][:3990]}")
+                            return
+        await msg.edit("❌ Lyrics not found.")
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('songinfo', delete_cmd=False)
+async def songinfo_cmd(event):
+    query = get_args(event.message)
+    if not query:
+        await event.reply("❌ Usage: `.songinfo <song>`")
+        return
+    msg = await event.reply("🎵 Fetching details...")
+    try:
+        search = await deezer_search(query, 1)
+        if not search or not search.get("data"):
+            await msg.edit("❌ Song not found.")
+            return
+        track_id = search["data"][0]["id"]
+        url = f"https://api.deezer.com/track/{track_id}"
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+            async with session.get(url) as resp:
+                track = await resp.json()
+        dur = f"{track['duration'] // 60}:{track['duration'] % 60:02d}"
+        explicit = "🔞 Yes" if track.get("explicit_lyrics") else "✅ No"
+        await msg.edit(
+            f"🎵 **Detailed Song Info**\n\n"
+            f"🎤 **Title:** `{track.get('title', 'N/A')}`\n"
+            f"👤 **Artist:** `{track['artist']['name']}`\n"
+            f"💿 **Album:** `{track['album']['title']}`\n"
+            f"📅 **Released:** `{track.get('release_date', 'N/A')}`\n"
+            f"⏱ **Duration:** `{dur}`\n"
+            f"🎛 **BPM:** `{track.get('bpm', 'N/A')}`\n"
+            f"🔞 **Explicit:** {explicit}\n"
+            f"🔗 [Listen]({track.get('link', '')})",
+            parse_mode='markdown'
+        )
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('spotify', delete_cmd=False)
+async def spotify_cmd(event):
+    query = get_args(event.message)
+    if not query:
+        await event.reply("❌ Usage: `.spotify <query>`")
+        return
+    msg = await event.reply("🎵 Searching...")
+    try:
+        data = await deezer_search(query, 5)
+        if not data or not data.get("data"):
+            await msg.edit("❌ No results found.")
+            return
+        text = f"🎵 **Search results:** `{query}`\n\n"
+        for i, track in enumerate(data["data"], 1):
+            dur = f"{track['duration'] // 60}:{track['duration'] % 60:02d}"
+            preview = f"[▶️]({track['preview']})" if track.get("preview") else ""
+            text += (
+                f"**{i}.** `{track['title']}` – {track['artist']['name']}\n"
+                f"   ⏱ {dur} {preview} 🔗 [Listen]({track['link']})\n\n"
+            )
+        await msg.edit(text, parse_mode='markdown')
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('trending', delete_cmd=False)
+async def trending_cmd(event):
+    msg = await event.reply("📊 Loading trending...")
+    try:
+        url = "https://api.deezer.com/chart/0/tracks?limit=10"
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+        if not data or not data.get("data"):
+            await msg.edit("❌ Failed to load charts.")
+            return
+        text = "🔥 **Global Trending Songs**\n\n"
+        for i, track in enumerate(data["data"], 1):
+            dur = f"{track['duration'] // 60}:{track['duration'] % 60:02d}"
+            medal = ["🥇", "🥈", "🥉"][i - 1] if i <= 3 else f"**{i}.**"
+            text += f"{medal} `{track['title']}` – {track['artist']['name']} (⏱ {dur})\n"
+        await msg.edit(text, parse_mode='markdown')
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('ringtone', delete_cmd=False)
+async def ringtone_cmd(event):
+    query = get_args(event.message)
+    if not query:
+        await event.reply("❌ Usage: `.ringtone <song>`")
+        return
+    msg = await event.reply("🔔 Searching ringtones...")
+    try:
+        data = await deezer_search(query, 5)
+        if not data or not data.get("data"):
+            await msg.edit("❌ No ringtones found.")
+            return
+        text = f"🔔 **Ringtone Search:** `{query}`\n\n"
+        found = False
+        for i, track in enumerate(data["data"], 1):
+            if track.get("preview"):
+                found = True
+                text += f"**{i}.** `{track['title']}` – {track['artist']['name']}\n   📥 [Download 30s]({track['preview']})\n\n"
+        if not found:
+            await msg.edit("❌ No previews available.")
+            return
+        await msg.edit(text, parse_mode='markdown')
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('playlist', delete_cmd=False)
+async def playlist_cmd(event):
+    mood = get_args(event.message).lower()
+    if not mood:
+        await event.reply("❌ Usage: `.playlist <mood>`\nMoods: happy, sad, chill, party, romantic, workout, focus")
+        return
+    MOOD_GENRES = {
+        "happy": "132", "sad": "165", "chill": "106", "party": "113",
+        "romantic": "98", "workout": "129", "focus": "466",
+    }
+    msg = await event.reply(f"🎶 Generating `{mood}` playlist...")
+    try:
+        genre_id = MOOD_GENRES.get(mood, "132")
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+            async with session.get(f"https://api.deezer.com/genre/{genre_id}/artists") as resp:
+                artists = await resp.json()
+        if not artists or not artists.get("data"):
+            await msg.edit("❌ Mood not found.")
+            return
+
+        async def fetch_top(aid):
+            try:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as s:
+                    async with s.get(f"https://api.deezer.com/artist/{aid}/top?limit=2") as r:
+                        return await r.json()
+            except Exception:
+                return None
+
+        results = await asyncio.gather(*[fetch_top(a["id"]) for a in artists["data"][:5]])
+        tracks = []
+        for top in results:
+            if top and top.get("data"):
+                tracks.extend(top["data"])
+        if not tracks:
+            await msg.edit("❌ No tracks found.")
+            return
+        emoji = {"happy": "😄", "sad": "😢", "chill": "😌", "party": "🎉", "romantic": "💕", "workout": "💪", "focus": "🧠"}.get(mood, "🎵")
+        text = f"{emoji} **{mood.title()} Playlist**\n\n"
+        for i, t in enumerate(tracks[:10], 1):
+            dur = f"{t['duration'] // 60}:{t['duration'] % 60:02d}"
+            text += f"**{i}.** `{t['title']}` – {t['artist']['name']} ({dur})\n"
+        await msg.edit(text, parse_mode='markdown')
+    except Exception as e:
+        await msg.edit(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('t2i', delete_cmd=False)
+async def t2i_cmd(event):
+    prompt = get_args(event.message)
+    if not prompt:
+        await event.reply("❌ Usage: `.t2i <prompt>`")
+        return
+    status = await event.reply(f"🎨 Generating...\n`{prompt[:80]}`")
+    try:
+        encoded = url_quote(prompt)
+        url = (
+            f"https://image.pollinations.ai/prompt/{encoded}"
+            f"?nologo=true&enhance=true&width=1024&height=1024"
+            f"&model=flux&seed={random.randint(1, 999999)}"
+        )
+        timeout = aiohttp.ClientTimeout(total=60)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    await status.edit(f"❌ Image API error: {resp.status}")
+                    return
+                img_data = await resp.read()
+        img_path = TEMP_DIR / f"t2i_{int(time.time())}.jpg"
+        img_path.write_bytes(img_data)
+        try:
+            await status.delete()
+        except Exception:
+            pass
+        await client.send_file(event.chat_id, str(img_path), reply_to=event.message.id)
+        try:
+            os.remove(img_path)
+        except Exception:
+            pass
+    except asyncio.TimeoutError:
+        await status.edit("❌ **Timeout** – Try again.")
+    except Exception as e:
+        await status.edit(f"❌ **Error:** `{str(e)[:150]}`")
+
+@cmd('animate', delete_cmd=True)
+async def animate_cmd(event):
+    text = get_args(event.message)
+    if not text:
+        await event.reply("❌ Usage: `.animate <text>`")
+        return
+    frames = ["🤍", "🦋", "🌸", "💖", "💝", "🎼", "😇", "✨"]
+    msg = await event.reply("🤍")
+    try:
+        for i in range(1, len(text) + 1):
+            await msg.edit(text[:i] + " " + random.choice(frames))
+            await asyncio.sleep(0.35)
+        for _ in range(5):
+            await msg.edit(f"🤍 {text} 🌸")
+            await asyncio.sleep(0.6)
+            await msg.edit(f"💖 {text} 💝")
+            await asyncio.sleep(0.6)
+            await msg.edit(f"🦋 {text} 🎼")
+            await asyncio.sleep(0.6)
+        await msg.edit(f"💖 **{text}** 💖")
+    except Exception:
+        pass
+
+@cmd('spinner', delete_cmd=True)
+async def spinner_cmd(event):
+    args = get_args(event.message)
+    try:
+        secs = int(args) if args else 8
+    except Exception:
+        secs = 8
+    secs = min(max(secs, 3), 30)
+    stages = [("🤍", "Starting up"), ("🦋", "Loading data"), ("🌸", "Processing"),
+              ("💖", "Almost done"), ("💝", "Finalizing")]
+    frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    msg = await event.reply("⠋ Starting...")
+    try:
+        total = secs * 4
+        for i in range(total):
+            stage_idx = min(int((i / total) * len(stages)), len(stages) - 1)
+            emoji, label = stages[stage_idx]
+            bar_len = 12
+            filled = int((i / total) * bar_len)
+            bar = "█" * filled + "░" * (bar_len - filled)
+            await msg.edit(
+                f"{emoji} **{label}...**\n\n"
+                f"`{bar}` {int((i / total) * 100)}%\n"
+                f"{frames[i % len(frames)]}"
+            )
+            await asyncio.sleep(0.35)
+        await msg.edit("💝 **Complete!** 🎼")
+        await asyncio.sleep(1.5)
+    except Exception:
+        pass
+
+@cmd('loveu', delete_cmd=False)
+async def loveu_cmd(event):
+    final_box = (
+        "╭═════════💜═╮\n"
+        "  🇮 🇱‌🇴‌🇻‌🇪 🇾‌🇴‌🇺\n"
+        "╰═💜═════════╯"
+    )
+    await event.reply(final_box)
+
+@cmd('matrix', delete_cmd=True)
+async def matrix_cmd(event):
+    args = get_args(event.message)
+    try:
+        secs = int(args) if args else 8
+    except Exception:
+        secs = 8
+    secs = min(max(secs, 3), 20)
+    chars = "01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホ"
+    msg = await event.reply("`01001000`")
+    try:
+        total = secs * 2
+        for i in range(total):
+            line = "".join(random.choice(chars) for _ in range(14))
+            await msg.edit(f"🟢 `{line}`" if i % 4 == 0 else f"`{line}`")
+            await asyncio.sleep(0.5)
+        for _ in range(2):
+            await msg.edit("`Wake up, Neo...`")
+            await asyncio.sleep(0.9)
+            await msg.edit("`Follow the white rabbit 🐇`")
+            await asyncio.sleep(0.9)
+        await msg.edit("🟢 **Welcome to the Matrix** 🟢")
+    except Exception:
+        pass
+
+@cmd('hearts', delete_cmd=True)
+async def hearts_cmd(event):
+    text = get_args(event.message) or "CipherElite"
+    hearts = ["💖", "💗", "💓", "💞", "💕", "❤️", "🧡", "💛", "💚", "💙", "💜"]
+    msg = await event.reply(f"💖 {text} 💖")
+    try:
+        for _ in range(15):
+            h1, h2 = random.choice(hearts), random.choice(hearts)
+            await msg.edit(f"{h1} {text} {h2}")
+            await asyncio.sleep(0.4)
+        positions = ["💕", "  💕", "    💕", "      💕", "    💕", "  💕"]
+        for i in range(12):
+            pos = positions[i % len(positions)]
+            await msg.edit(f"{pos}\n  {text}\n{pos}")
+            await asyncio.sleep(0.3)
+        await msg.edit(f"💖💗💓 **{text}** 💓💗💖")
+    except Exception:
+        pass
+
+@cmd('countdown', delete_cmd=True)
+async def countdown_cmd(event):
+    args = get_args(event.message)
+    try:
+        n = int(args) if args else 5
+    except Exception:
+        n = 5
+    n = min(max(n, 1), 30)
+    msg = await event.reply(f"⏱️ Starting countdown from {n}...")
+    try:
+        for i in range(n, 0, -1):
+            await msg.edit(f"⏱️ **{i}**")
+            await asyncio.sleep(1.2)
+        await msg.edit("🎉 **GO!** 🎉")
+    except Exception:
+        pass
+
+@cmd('wave', delete_cmd=True)
+async def wave_cmd(event):
+    text = get_args(event.message)
+    if not text:
+        await event.reply("❌ Usage: `.wave <text>`")
+        return
+    msg = await event.reply(text)
+    try:
+        for i in range(len(text)):
+            shifted = "  " * i + text[:len(text) - i]
+            await msg.edit(f"`{shifted}`")
+            await asyncio.sleep(0.25)
+        for i in range(len(text), -1, -1):
+            shifted = "  " * i + text[:len(text) - i]
+            await msg.edit(f"`{shifted}`")
+            await asyncio.sleep(0.25)
+        waves = ["🌊", "〰️", "🌸", "🦋", "🤍", "💖"]
+        for i in range(8):
+            w = waves[i % len(waves)]
+            await msg.edit(f"{w} {text} {w}")
+            await asyncio.sleep(0.7)
+        await msg.edit(f"🌊 **{text}** 🌊\n\n_💖 Beautiful 💖_")
+    except Exception:
+        pass
+                 
