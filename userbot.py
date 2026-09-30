@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # CODERNOVA SINGLE USER USERBOT
+# Direct deploy with String Session (Render + GitHub Ready)
 
 import os, sys, json, asyncio, random, re, time, logging, shutil
 from datetime import datetime
@@ -24,8 +25,10 @@ from telethon.tl.functions.messages import SendReactionRequest
 from telethon.tl.types import ReactionEmoji
 from telethon.sessions import StringSession
 
+# ═══════════════ LOAD .env ═══════════════
 load_dotenv()
 
+# ═══════════════ CONFIG ═══════════════
 API_ID       = int(os.getenv("API_ID", "37550071"))
 API_HASH     = os.getenv("API_HASH", "eca739f28db4f12737a0d418f4a77343")
 PHONE_NUMBER = os.getenv("PHONE_NUMBER", "+918090007204")
@@ -48,11 +51,12 @@ logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
 log = logging.getLogger("CN_USERBOT")
 
 if not STRING_SESSION:
-    log.error("❌ STRING_SESSION missing!")
+    log.error("❌ STRING_SESSION missing! Render Environment Variables me daalo.")
     exit(1)
 
 client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
 
+# ═══════════════ SIMPLE JSON DB ═══════════════
 db = {}
 
 def load_db():
@@ -112,6 +116,7 @@ def save_db():
 
 load_db()
 
+# ═══════════════ HELPERS ═══════════════
 def get_args(msg):
     t = msg.text or ''
     for m in re.finditer(r'\.\w+\s*(.*)', t):
@@ -175,6 +180,7 @@ async def reply_to_target(event, text):
             pass
     await event.reply(text)
 
+# ═══════════════ LISTS ═══════════════
 RAID_MESSAGES = ["🚀 Raid #{n}!", "💥 Spam #{n}!", "🔥 Attack #{n}!", "⚡ Raid #{n}", "🌀 Flood #{n}"]
 REPLY_MESSAGES = ["💬 Spam reply!", "🤖 Bot attack!", "📢 Hey there!", "⚠️ Raid mode!", "🌀 Flooding!"]
 SPAM_EMOJIS = ['🌟', '✨', '🔥', '💥', '⚡', '🌀', '🚀', '🎯', '💫', '⭐']
@@ -185,6 +191,7 @@ DEFAULT_SPAM_TEXTS = [
     "🔥 Spam till you drop!"
 ]
 
+# ═══════════════ COMMAND DECORATOR ═══════════════
 def cmd(pattern, owner_only=False, delete_cmd=True):
     def wrapper(func):
         @client.on(events.NewMessage(pattern=rf'^\.{pattern}(\s.*)?$'))
@@ -207,7 +214,8 @@ def cmd(pattern, owner_only=False, delete_cmd=True):
                 await event.reply(f"❌ Error: {str(e)[:200]}")
         return handler
     return wrapper
-  
+
+# ═══════════════ BASIC COMMANDS ═══════════════
 @cmd('help', delete_cmd=False)
 async def help_cmd(event):
     await event.reply("""**⚙️ CLONEXBOT USERBOT ⚙️**
@@ -332,6 +340,7 @@ async def info_cmd(event):
     except Exception:
         await event.reply("❌ Could not get user info.")
 
+# ═══════════════ PROFILE SYSTEM ═══════════════
 @cmd('clone')
 async def clone_cmd(event):
     if not is_owner(event.sender_id):
@@ -524,6 +533,7 @@ async def unghost_cmd(event):
     except Exception as e:
         await event.reply(f"❌ Unghost failed: {str(e)[:100]}")
 
+# ═══════════════ ADMIN COMMANDS ═══════════════
 @cmd('admins')
 async def admins_cmd(event):
     await event.reply(f"👑 Owner: `{db.get('owner_id', OWNER_ID)}`\n**Admins:** {db['admins']}", parse_mode='markdown')
@@ -556,6 +566,7 @@ async def deladmin_cmd(event):
         save_db()
     await event.reply("✅ **Admin Removed!**")
 
+# ═══════════════ MUTE & RESTRICT ═══════════════
 @cmd('mute', delete_cmd=False)
 async def mute_cmd(event):
     if not event.is_group:
@@ -604,7 +615,6 @@ async def gunmute_cmd(event):
         del db['gmuted'][str(uid)]
         save_db()
     await event.reply("🌐 **User Globally Unmuted!**")
-  
 
 def get_base_banned_rights():
     return ChatBannedRights(
@@ -660,6 +670,7 @@ async def unlock_cmd(event):
     except Exception as e:
         await event.reply(f"❌ Unlock failed: {str(e)[:100]}")
 
+# ═══════════════ GROUP MOD ═══════════════
 @cmd('tagall')
 async def tagall_cmd(event):
     if not event.is_group:
@@ -813,6 +824,7 @@ async def stop_cmd(event):
     save_db()
     await event.reply("🛑 **All loops stopped!**")
 
+# ═══════════════ FAST GC ═══════════════
 async def fast_gc_loop(chat_id):
     while True:
         data = db['fast_gc_data'].get(str(chat_id))
@@ -860,6 +872,7 @@ async def fastgc_cmd(event):
     else:
         await event.reply("Usage: `.fastgc set <text>` | `.fastgc stop`")
 
+# ═══════════════ AUTO SYSTEM ═══════════════
 @cmd('autoreact')
 async def autoreact_cmd(event):
     arg = get_args(event.message).lower()
@@ -986,6 +999,7 @@ async def removeblacklist_cmd(event):
         save_db()
     await event.reply("✅ **User Removed from Blacklist!**")
 
+# ═══════════════ PM GUARD HANDLER ═══════════════
 @client.on(events.NewMessage(func=lambda e: e.is_private and not e.out))
 async def pm_guard_handler(event):
     uid = event.sender_id
@@ -1013,6 +1027,7 @@ async def pm_guard_handler(event):
         except Exception:
             pass
 
+# ═══════════════ GLOBAL MUTE FILTER ═══════════════
 @client.on(events.NewMessage)
 async def gmute_filter(event):
     if event.out:
@@ -1026,6 +1041,7 @@ async def gmute_filter(event):
         except Exception:
             pass
 
+# ═══════════════ AUTO-REACT HANDLER ═══════════════
 @client.on(events.NewMessage)
 async def auto_react_handler(event):
     if event.out:
@@ -1053,6 +1069,7 @@ async def auto_react_handler(event):
             except Exception:
                 pass
 
+# ═══════════════ AUTO REPLY HANDLER ═══════════════
 @client.on(events.NewMessage(func=lambda e: e.is_private and not e.out))
 async def auto_reply_handler(event):
     uid = event.sender_id
@@ -1082,6 +1099,7 @@ async def auto_reply_handler(event):
         except Exception:
             pass
 
+# ═══════════════ RAID ENGINE ═══════════════
 @cmd('reply')
 async def reply_raid_cmd(event):
     if not event.is_group:
@@ -1165,6 +1183,7 @@ async def sheart_raid_cmd(event):
         db['heart_raid'][chat_id].clear()
         await event.reply("🛑 **Heart raid stopped!**")
 
+# ═══════════════ SPAM ═══════════════
 @cmd('spray')
 async def spray_cmd(event):
     text = get_args(event.message)
@@ -1190,15 +1209,137 @@ async def spray_cmd(event):
             while db['spam_running'] and count < 100:
                 try:
                     emoji = random.choice(SPAM_EMOJIS)
-                                  await event.reply(f"{text} {emoji}")
-                count += 1
-                await asyncio.sleep(0.5)
-            except Exception:
-                break
+                    await event.reply(f"{text} {emoji}")
+                    count += 1
+                    await asyncio.sleep(0.5)
+                except Exception:
+                    break
+            db['spam_running'] = False
+        asyncio.create_task(spam_loop())
+        await event.reply(f"💣 **Spam started!**")
+
+@cmd('dspray')
+async def dspray_cmd(event):
     db['spam_running'] = False
-asyncio.create_task(spam_loop())
-await event.reply("💣 **Spam started!**")
-                  
+    await event.reply("🛑 **Spam stopped!**")
+
+# ═══════════════ FUN ═══════════════
+@cmd('ping', delete_cmd=False)
+async def ping_cmd(event):
+    start = time.time()
+    msg = await event.reply("🏓 Pong!")
+    await msg.edit(f"🏓 **Pong!** `{round((time.time() - start) * 1000, 2)}ms`", parse_mode='markdown')
+
+@cmd('flip', delete_cmd=False)
+async def flip_cmd(event):
+    await event.reply(f"{random.choice(['**Heads** 🪙', '**Tails** 🪙'])}", parse_mode='markdown')
+
+@cmd('dice', delete_cmd=False)
+async def dice_cmd(event):
+    await event.reply(f"🎲 **Dice:** `{random.randint(1, 6)}`", parse_mode='markdown')
+
+# ═══════════════ STALK TOOLS ═══════════════
+@cmd('stalk', delete_cmd=False)
+async def stalk_cmd(event):
+    reply = await event.get_reply_message()
+    if not reply:
+        await event.reply("❌ Reply to a user's message!")
+        return
+    try:
+        user = await reply.get_sender()
+        full = await client(functions.users.GetFullUserRequest(user.id))
+        fu = full.full_user
+        name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "Unknown"
+        username = f"@{user.username}" if user.username else "Hidden"
+        bio = fu.about or "No bio"
+        photos = await client.get_profile_photos(user)
+        status = "Unknown"
+        if hasattr(user, 'status') and user.status:
+            sn = type(user.status).__name__
+            if 'Online' in sn:
+                status = "🟢 Online NOW"
+            elif 'Recently' in sn:
+                status = "🟡 Recently"
+            elif 'LastWeek' in sn:
+                status = "🟠 Last week"
+            elif 'LastMonth' in sn:
+                status = "🔴 Last month"
+            else:
+                status = "⚫ Long time ago"
+        premium = "⭐ Yes" if getattr(user, 'premium', False) else "No"
+        verified = "✅ Yes" if getattr(user, 'verified', False) else "No"
+        scam = "⚠️ YES!" if getattr(user, 'scam', False) else "No"
+        fake = "⚠️ YES!" if getattr(user, 'fake', False) else "No"
+        await event.reply(
+            f"🕵️ **Deep Stalk**\n\n"
+            f"👤 **Name:** {name}\n"
+            f"🆔 **ID:** `{user.id}`\n"
+            f"📛 **Username:** {username}\n"
+            f"📝 **Bio:** {bio}\n"
+            f"📊 **Status:** {status}\n"
+            f"📸 **Profile Pics:** {len(photos)}\n"
+            f"⭐ **Premium:** {premium}\n"
+            f"✅ **Verified:** {verified}\n"
+            f"🚫 **Scam:** {scam}\n"
+            f"🎭 **Fake:** {fake}\n"
+            f"💬 **Common Chats:** {fu.common_chats_count}\n\n"
+            f"🔗 [Profile Link](tg://user?id={user.id})",
+            parse_mode='markdown'
+        )
+    except Exception as e:
+        await event.reply(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('allpfp', delete_cmd=False)
+async def allpfp_cmd(event):
+    reply = await event.get_reply_message()
+    if reply:
+        user = await reply.get_sender()
+    else:
+        user = await event.get_sender()
+    try:
+        photos = await client.get_profile_photos(user)
+        if not photos:
+            await event.reply("❌ No profile pictures found!")
+            return
+        msg = await event.reply(f"📸 Downloading {len(photos)} pics...")
+        for i, photo in enumerate(photos[:10]):
+            await client.send_file(
+                event.chat_id, photo,
+                caption=f"📸 **{user.first_name or 'User'}'s PFP** ({i + 1}/{min(len(photos), 10)})"
+            )
+        await msg.edit(f"✅ Sent {min(len(photos), 10)} profile pictures!")
+    except Exception as e:
+        await event.reply(f"❌ Error: `{str(e)[:150]}`")
+
+@cmd('lastmsg', delete_cmd=False)
+async def lastmsg_cmd(event):
+    reply = await event.get_reply_message()
+    if not reply:
+        await event.reply("❌ Reply to a user's message!")
+        return
+    args = get_args(event.message)
+    try:
+        count = min(int(args) if args else 5, 20)
+    except Exception:
+        count = 5
+    try:
+        user = await reply.get_sender()
+        chat = await event.get_chat()
+        msgs = []
+        async for m in client.iter_messages(chat, from_user=user, limit=count):
+            text = m.text or "[Media]"
+            msgs.append(f"• `{text[:60]}{'...' if len(text) > 60 else ''}`")
+        if not msgs:
+            await event.reply(f"❌ No messages from {user.first_name or 'user'}!")
+            return
+        await event.reply(
+            f"🕵️ **Last {len(msgs)} messages from {user.first_name or 'user'}**\n\n"
+            + "\n".join(msgs)
+        )
+    except Exception as e:
+        await event.reply(f"❌ Error: `{str(e)[:150]}`")
+
+# ═══════════════ MUSIC ═══════════════
 async def deezer_search(query, limit=1):
     try:
         url = f"https://api.deezer.com/search?q={url_quote(query)}&limit={limit}"
@@ -1395,6 +1536,7 @@ async def playlist_cmd(event):
     except Exception as e:
         await msg.edit(f"❌ Error: `{str(e)[:150]}`")
 
+# ═══════════════ TEXT-TO-IMAGE ═══════════════
 @cmd('t2i', delete_cmd=False)
 async def t2i_cmd(event):
     prompt = get_args(event.message)
@@ -1432,6 +1574,7 @@ async def t2i_cmd(event):
     except Exception as e:
         await status.edit(f"❌ **Error:** `{str(e)[:150]}`")
 
+# ═══════════════ ANIMATIONS ═══════════════
 @cmd('animate', delete_cmd=True)
 async def animate_cmd(event):
     text = get_args(event.message)
@@ -1581,7 +1724,7 @@ async def wave_cmd(event):
     except Exception:
         pass
 
-
+# ═══════════════ FANCY TEXT ═══════════════
 FANCY_WORDS = ["hi", "hey", "bye", "welcome", "ok", "yes", "wow", "cool", "omg", "lol",
                "love", "hate", "sad", "good", "bad", "best", "go", "fire", "boss"]
 
@@ -1621,6 +1764,7 @@ async def banner_cmd(event):
         font = "big"
     await reply_to_target(event, _make_banner(text, font))
 
+# ═══════════════ TEXT ART ═══════════════
 ART_TEXTS = {
     "gm": """⁣....♥).....♥)..
 ....(♥.....(♥..
@@ -1704,6 +1848,7 @@ for _key, _art in ART_TEXTS.items():
     async def art_handler(event, a=_art):
         await reply_to_target(event, a)
 
+# ═══════════════ PUBLIC FEATURES ═══════════════
 @cmd('weather', owner_only=True, delete_cmd=False)
 async def weather_cmd(event):
     city = get_args(event.message)
@@ -1745,6 +1890,38 @@ async def weather_cmd(event):
 🌬️ **Wind Speed:** {wind} m/s
 📊 **Pressure:** {pressure} hPa"""
                     await event.reply(msg)
+                elif resp.status == 404:
+                    url2 = f"http://api.openweathermap.org/data/2.5/weather?q={city},india&appid={WEATHER_API_KEY}&units=metric"
+                    async with session.get(url2) as resp2:
+                        if resp2.status == 200:
+                            data = await resp2.json()
+                            city_name = data.get('name', city.title())
+                            country = data.get('sys', {}).get('country', '')
+                            temp = data['main']['temp']
+                            feels_like = data['main']['feels_like']
+                            desc = data['weather'][0]['description'].title()
+                            humidity = data['main']['humidity']
+                            wind = data['wind']['speed']
+                            pressure = data['main']['pressure']
+                            emoji_map = {'clear': '☀️', 'clouds': '☁️', 'rain': '🌧️', 'snow': '❄️',
+                                         'thunderstorm': '⛈️', 'drizzle': '🌦️', 'mist': '🌫️', 'smoke': '💨', 'haze': '🌫️'}
+                            emoji = '🌤️'
+                            for key, em in emoji_map.items():
+                                if key in desc.lower():
+                                    emoji = em
+                                    break
+                            msg = f"""**{emoji} Weather Report: {city_name}, {country}**
+📅 {datetime.now().strftime('%d %b %Y, %I:%M %p')}
+
+🌡️ **Temperature:** {temp}°C
+🌡️ **Feels Like:** {feels_like}°C
+📝 **Condition:** {desc}
+💧 **Humidity:** {humidity}%
+🌬️ **Wind Speed:** {wind} m/s
+📊 **Pressure:** {pressure} hPa"""
+                            await event.reply(msg)
+                        else:
+                            await event.reply(f"❌ City '{city}' not found.")
                 else:
                     await event.reply(f"❌ Weather API error: {resp.status}")
     except Exception as e:
@@ -1895,6 +2072,7 @@ async def play_cmd(event):
     except Exception as e:
         await status_msg.edit(f"❌ Error: {str(e)[:100]}")
 
+# ═══════════════ IMAGE TOOLS ═══════════════
 @cmd('sticker', delete_cmd=False)
 async def sticker_cmd(event):
     reply = await event.get_reply_message()
@@ -1988,6 +2166,7 @@ async def img2pdf_cmd(event):
     except Exception as e:
         await msg.edit(f"❌ Error: `{str(e)[:200]}`")
 
+# ═══════════════ FORECAST ═══════════════
 @cmd('forecast', owner_only=True, delete_cmd=False)
 async def forecast_cmd(event):
     city = get_args(event.message)
@@ -2022,6 +2201,7 @@ async def forecast_cmd(event):
     except Exception as e:
         await msg.edit(f"❌ Error: `{str(e)[:200]}`")
 
+# ═══════════════ AQI ═══════════════
 @cmd('aqi', owner_only=True, delete_cmd=False)
 async def aqi_cmd(event):
     city = get_args(event.message)
@@ -2059,6 +2239,7 @@ async def aqi_cmd(event):
     except Exception as e:
         await msg.edit(f"❌ Error: `{str(e)[:200]}`")
 
+# ═══════════════ HEALTH CHECK SERVER (Render ke liye) ═══════════════
 async def health_server():
     async def handle(request):
         return web.Response(text="✅ Codernova Userbot Running")
@@ -2073,8 +2254,11 @@ async def health_server():
     log.info(f"✅ Health server on port {port}")
     await asyncio.Event().wait()
 
+# ═══════════════ STARTUP ═══════════════
 async def main():
+    # Health server background me chalao (Render ke liye)
     asyncio.create_task(health_server())
+    
     await client.start(phone=PHONE_NUMBER)
     me = await client.get_me()
     log.info(f"✅ Userbot Started: {me.first_name} (@{me.username})")
