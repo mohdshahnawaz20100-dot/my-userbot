@@ -1190,6 +1190,14 @@ async def spray_cmd(event):
             while db['spam_running'] and count < 100:
                 try:
                     emoji = random.choice(SPAM_EMOJIS)
+                                  await event.reply(f"{text} {emoji}")
+                count += 1
+                await asyncio.sleep(0.5)
+            except Exception:
+                break
+    db['spam_running'] = False
+asyncio.create_task(spam_loop())
+await event.reply("💣 **Spam started!**")
                   
 async def deezer_search(query, limit=1):
     try:
