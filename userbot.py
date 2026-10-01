@@ -2276,7 +2276,7 @@ if __name__ == '__main__':
     print("  CODERNOVA SINGLE-USER USERBOT")
     print("=" * 50)
     try:
-        asyncio.run(main())                        ← ✅ ye lagao
+        asyncio.run(main())              
     except KeyboardInterrupt:
         log.info("🛑 Stopped.")
     except Exception as e:
